@@ -1,0 +1,269 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Spotify Market Tracker Bot</title>
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+    <style type="text/css">
+      #login, #loggedin {
+        display: none;
+      }
+      .text-overflow {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        width: 500px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <div id="login">
+        <h1>Spotify Music Bot</h1>
+        <a href="/login" class="btn btn-primary">Log in with Spotify</a><br><br>
+        <a href="help.html" target="_blank">Need Help?</a>
+      </div>
+      <div id="loggedin">
+        <div id="user-profile"></div><br>
+        <button class="btn btn-default" id="start-music-btn">Start Music</button><br>
+        <div id="currently-trending"></div><br>
+        
+        <div id="test">
+          <!-- TradingView Widget BEGIN -->
+          <div class="tradingview-widget-container">
+            <div id="tradingview_677bd"></div>
+            <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+            <script type="text/javascript">
+            new TradingView.widget(
+            {
+              "width": 980,
+              "height": 610,
+              "symbol": "spy",
+              "interval": "D",
+              "timezone": "America/New_York",
+              "theme": "light",
+              "style": "2",
+              "locale": "en",
+              "toolbar_bg": "#f1f3f6",
+              "enable_publishing": false,
+              "range": "1d",
+              "allow_symbol_change": true,
+              "container_id": "tradingview_677bd"
+            }
+            );
+            </script>
+          </div>
+          <!-- TradingView Widget END -->
+        </div><br><br>
+        
+        <button class="btn btn-default" id="obtain-new-token">Obtain new token using the refresh token</button>
+      </div>
+    </div>
+
+    <script id="user-profile-template" type="text/x-handlebars-template">
+      <h1>Logged in as {{display_name}}</h1>
+      <div class="media">
+        <div class="pull-left">
+          <img class="media-object" width="150" src="{{images.0.url}}" />
+        </div>
+        <form>
+          <a href="help.html" target="_blank">Need Help?</a><br><br>
+          <label for="Going Up">Stock Symbol to Track</label><br>
+          <input type="text" id="symbol" name="symbol"><br><br>
+          <label for="Going Up">Going Up Playlist</label><br>
+          <input type="text" id="upPlaylist" name="upPlaylist"><br>
+          <label for="Going Down">Going Down Playlist</label><br>
+          <input type="text" id="downPlaylist" name="downPlaylist"><br>
+        </form>
+      </div>
+    </script>
+
+    <script id="currently-trending-up-template" type="text/x-handlebars-template">
+      <h4>This stock is currently trending : <span style="color:green">{{trending}}</span></h4>
+      <p>{{stockSymbol}} {{stockPrice}}</p>
+    </script>
+    <script id="currently-trending-down-template" type="text/x-handlebars-template">
+      <h4>This stock is currently trending : <span style="color:red">{{trending}}</span></h4>
+      <p>{{stockSymbol}} {{stockPrice}}</p>
+    </script>
+    <script id="currently-trending-none-template" type="text/x-handlebars-template">
+      <h4>This stock is currently trending : {{trending}}</h4>
+      <p>{{stockSymbol}} {{stockPrice}}</p>
+    </script>
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/handlebars.js/2.0.0-alpha.1/handlebars.min.js"></script>
+    <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+    <script>
+      (function() {
+
+        /**
+         * Obtains parameters from the hash of the URL
+         * @return Object
+         */
+        function getHashParams() {
+          var hashParams = {};
+          var e, r = /([^&;=]+)=?([^&;]*)/g,
+              q = window.location.hash.substring(1);
+          while ( e = r.exec(q)) {
+             hashParams[e[1]] = decodeURIComponent(e[2]);
+          }
+          return hashParams;
+        }
+
+        var userProfileSource = document.getElementById('user-profile-template').innerHTML,
+            userProfileTemplate = Handlebars.compile(userProfileSource),
+            userProfilePlaceholder = document.getElementById('user-profile');
+
+        //var marketChartSource = document.getElementById('market-chart-template').innerHTML,
+        //    marketChartTemplate = Handlebars.compile(marketChartSource),
+        //    marketChartPlaceholder = document.getElementById('market-chart');
+
+        var currentlyTrendingUpSource = document.getElementById('currently-trending-up-template').innerHTML,
+            currentlyTrendingUpTemplate = Handlebars.compile(currentlyTrendingUpSource),
+            currentlyTrendingUpPlaceholder = document.getElementById('currently-trending');
+        
+        var currentlyTrendingDownSource = document.getElementById('currently-trending-down-template').innerHTML,
+            currentlyTrendingDownTemplate = Handlebars.compile(currentlyTrendingDownSource),
+            currentlyTrendingDownPlaceholder = document.getElementById('currently-trending');
+
+        var currentlyTrendingNoneSource = document.getElementById('currently-trending-none-template').innerHTML,
+            currentlyTrendingNoneTemplate = Handlebars.compile(currentlyTrendingNoneSource),
+            currentlyTrendingNonePlaceholder = document.getElementById('currently-trending');
+
+        var params = getHashParams();
+
+        var access_token = params.access_token,
+            refresh_token = params.refresh_token,
+            error = params.error;
+
+        var up_playlist = '',
+            down_playlist = '',
+            stock_symbol = '',
+            market_value = [],
+            current_trend = "(Just started, wait a few minutes to determine market trend)",
+            display_name = "";
+
+        if (error) {
+          alert('There was an error during the authentication');
+        } else {
+          if (access_token) {
+            currentlyTrendingNonePlaceholder.innerHTML = currentlyTrendingNoneTemplate({ trending: current_trend, stockSymbol: "", stockPrice: "" });
+            //marketChartPlaceholder.innerHTML = marketChartTemplate({stockSymbol: "spy"});
+
+            $.ajax({
+                url: 'https://api.spotify.com/v1/me',
+                headers: {
+                  'Authorization': 'Bearer ' + access_token
+                },
+                success: function(response) {
+                  display_name = response.display_name;
+                  userProfilePlaceholder.innerHTML = userProfileTemplate(response);
+
+                  $('#login').hide();
+                  $('#loggedin').show();
+                }
+            });
+          } else {
+              // render initial screen
+              $('#login').show();
+              $('#loggedin').hide();
+          }
+
+          document.getElementById('obtain-new-token').addEventListener('click', function() {
+            $.ajax({
+              url: '/refresh_token',
+              data: {
+                'refresh_token': refresh_token
+              }
+            }).done(function(data) {
+              access_token = data.access_token;
+            });
+          }, false);
+
+          setInterval(function(){
+            $.ajax({
+              url:  '/refresh_token',
+              data: {
+                'refresh_token': refresh_token
+              }
+            }).done(function(data) {
+              access_token = data.access_token;
+            });
+          }, 3300000);
+
+          document.getElementById('start-music-btn').addEventListener('click', function() {
+            $.ajax({
+              url: '/start_music',
+              data: {
+                'up_playlist': upPlaylist.value,
+                'down_playlist': downPlaylist.value,
+                'current_trend': current_trend,
+                'access_token': access_token,
+                'display_name': display_name
+              }
+            }).done(function(data) {
+              if (data.status === "passed"){
+                up_playlist = data.up_playlist;
+                down_playlist = data.down_playlist;
+                if (symbol.value !== stock_symbol){
+                  stock_symbol = symbol.value;
+                  market_value = [];
+                  current_trend = "(Just started, wait a few minutes to determine market trend)";
+                  //marketChartPlaceholder.innerHTML = marketChartTemplate({stockSymbol: "spy"});
+                }
+              }
+              else{
+                alert("Could not find playlist\n\n" + data.up_playlist + "\n" + data.down_playlist);
+              }
+            });
+          }, false);
+
+          setInterval(function(){
+            if (!(stock_symbol)) return;
+            $.ajax({
+              url: '/trigger_interval',
+              data: {
+                'stock_symbol': stock_symbol,
+                'up_playlist': up_playlist,
+                'down_playlist': down_playlist,
+                'market_value': market_value,
+                'current_trend': current_trend,
+                'access_token': access_token
+              }
+            }).done(function(data) {
+              market_value = data.market_value;
+              current_trend = data.current_trend;
+              if (current_trend == "down"){
+                currentlyTrendingDownPlaceholder.innerHTML = currentlyTrendingDownTemplate({
+                  trending: current_trend.toUpperCase(),
+                  stockSymbol: stock_symbol,
+                  stockPrice: market_value[market_value.length - 1]
+                });
+              }
+              else if (current_trend == "up"){
+                currentlyTrendingUpPlaceholder.innerHTML = currentlyTrendingUpTemplate({
+                  trending: current_trend.toUpperCase(),
+                  stockSymbol: stock_symbol,
+                  stockPrice: market_value[market_value.length - 1]
+                });
+              }
+              else {
+                currentlyTrendingNonePlaceholder.innerHTML = currentlyTrendingNoneTemplate({
+                  trending: current_trend,
+                  stockSymbol: stock_symbol,
+                  stockPrice: market_value[market_value.length - 1]
+                });
+              }
+            });
+          }, 60000);
+        }
+      })();
+    </script>
+  </body>
+</html>
+
+
+
+
+
+
