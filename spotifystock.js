@@ -230,27 +230,35 @@ app.get('/trigger_interval', function(req, res) {
     var x = body.indexOf(search_string);
     search_string = body.substring(x + search_string.length, x + search_string.length + 12).replace(',','');
     x = search_string.indexOf(".")
+    // Sometimes yahoo finance pulls -8.  In that case, just ignore that value and try again on the next check
+    if (parseFloat(search_string.substring(0,x+3)) < 0){
+      res.send({
+        'status': "passed",
+        'market_value': market_value,
+        'current_trend': current_trend
+      });
+      return;
+    }
     market_value.push(parseFloat(search_string.substring(0,x+3)))
     console.log(market_value)
 
-    var direction = {"upwards": false, "downwards": false}
-    if (market_value.length >= 5){
+    var direction = "";
+    if (market_value.length >= 6){
       direction = trending(market_value);
-      console.log(direction);
       market_value.shift();
     }
 
-    if (direction.upwards == true){
+    if (direction === "upward"){
       if (current_trend === "down"){
         change_playlist(req.query.access_token, req.query.up_playlist);
       }
-      current_trend = "up"
+      current_trend = "up";
     }
-    if (direction.downwards == true && current_trend !== "down"){
-      current_trend = "down"
+    if (direction === "downward" && current_trend !== "down"){
+      current_trend = "down";
       change_playlist(req.query.access_token, req.query.down_playlist);
     }
-    console.log(current_trend)
+    console.log(current_trend);
 
     res.send({
       'status': "passed",
@@ -264,16 +272,24 @@ var trending = function(market_value){
   upwards = true;
   downwards = true;
 
-  for (var i = 0; i < 4; i++){
-    if (market_value[i] <= market_value[i+1]){
-      downwards = false
+  var market_range = market_value[market_value.length - 1] - market_value[0];
+  var market_variance = 0;
+  for (var i = 0; i < 5; i++){
+    market_variance += Math.abs(market_value[i] - market_value[i+1]);
+  }
+
+  console.log("Range: " + market_range.toFixed(2).toString() + "\tVariance: " +  market_variance.toFixed(2).toString());
+
+  if (Math.abs(market_range)*2 >= market_variance){
+    if (market_range > 0){
+      return "upward";
     }
-    if (market_value[i] >= market_value[i+1]){
-      upwards = false
+    else if (market_range < 0){
+      return "downward";
     }
   }
 
-  return {"upwards": upwards, "downwards": downwards};
+  return "";
 }
 
 var change_playlist = function(access_token, playlist) {
