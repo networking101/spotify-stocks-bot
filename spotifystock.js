@@ -241,10 +241,10 @@ app.get('/trigger_interval', function(req, res) {
     }
 
     if (direction.upwards == true){
-      current_trend = "up"
       if (current_trend === "down"){
         change_playlist(req.query.access_token, req.query.up_playlist);
       }
+      current_trend = "up"
     }
     if (direction.downwards == true && current_trend !== "down"){
       current_trend = "down"
