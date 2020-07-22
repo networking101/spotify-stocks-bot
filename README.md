@@ -15,6 +15,7 @@ Open cmd.exe in the location you download the repo.
 **Do not change the the redirect uri.  The app needs to call back to that specific url and port**
 
 Start the bot from the command line
+
 ``` node spotifystock.js ```
 
 Open the web browser of your choice and browse to localhost:8888
