@@ -28,6 +28,7 @@ Enter a stock symbol to track. For example: tsla.
 Enter a "Going Up Playlist" that the bot will play when the stock is increasing.
 Same thing for "Going Down Playlist".
 "Going Up Playlist" will start playing until the bot can determine the trend of the stock.
+It could take a while to determine the trend (especially if the stock is volatile) so just be patient.
 
 The bot will check the price of the stock every minute.  If it sees a continual increase or decrease for 5 minutes, the corresponding playlist will start playing (if not already playing).  You may have to wait a while at the start until the bot can determine the trend.  Once found you should see the direction indicated.
 
