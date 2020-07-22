@@ -12,14 +12,6 @@ Download the repository and extract
 
 Open cmd.exe in the location you download the repo.
 
-Install required modules:
-* express
-* request
-* cors
-* cookie-parser
-
-```npm install express```
-
 **Do not change the the redirect uri.  The app needs to call back to that specific url and port**
 
 Start the bot from the command line
